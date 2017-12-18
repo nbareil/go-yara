@@ -204,20 +204,23 @@ func TestRule(t *testing.T) {
         rule t2 : tag2 x y { meta: author = "Author Two" strings: $b = "def" condition: $b }
         rule t3 : tag3 x y z { meta: author = "Author Three" strings: $c = "ghi" condition: $c }
 		rule t4 { strings: $d = "qwe" condition: $d }
-		rule t5 { strings: $d = "qwe" $e = "abc" condition: $d }
-		rule t6 { meta: author = "Author One" }`)
+		rule t5 { strings: $d = "qwe" wide
+			 $e = "abc" condition: $d or $e}`)
 	for _, r := range r.GetRules() {
 		t.Logf("%s:%s %#v", r.Namespace(), r.Identifier(), r.Tags())
 		switch r.Identifier() {
 		case "t1":
 			if !reflect.DeepEqual(r.Tags(), []string{"tag1"}) {
-				t.Error("Got wrong tags for t1")
+				t.Error("Got wrong tags for t1:")
 			}
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{"author": "Author One"}) {
 				t.Error("Got wrong meta variables for t1")
 			}
-			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$a": "abc"}) {
-				t.Error("Got wrong strings variable for t1")
+			expected := []YRString{
+				{Id: "$a", Value: "abc", Modifiers: FlagFullWord | FlagReferenced | FlagASCII},
+			}
+			if !reflect.DeepEqual(r.Strings(), expected) {
+				t.Errorf("Got wrong strings variable for t1: %x", r.Strings()[0].Modifiers)
 			}
 		case "t2":
 			if !reflect.DeepEqual(r.Tags(), []string{"tag2", "x", "y"}) {
@@ -226,7 +229,10 @@ func TestRule(t *testing.T) {
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{"author": "Author Two"}) {
 				t.Error("Got wrong meta variables for t2")
 			}
-			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$b": "def"}) {
+			expected := []YRString{
+				{Id: "$b", Value: "def", Modifiers: FlagReferenced | FlagASCII},
+			}
+			if !reflect.DeepEqual(r.Strings(), expected) {
 				t.Error("Got wrong strings variable for t2")
 			}
 		case "t3":
@@ -236,7 +242,10 @@ func TestRule(t *testing.T) {
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{"author": "Author Three"}) {
 				t.Error("Got wrong meta variables for t3")
 			}
-			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$c": "ghi"}) {
+			expected := []YRString{
+				{Id: "$c", Value: "ghi", Modifiers: FlagASCII | FlagReferenced},
+			}
+			if !reflect.DeepEqual(r.Strings(), expected) {
 				t.Error("Got wrong strings variable for t3")
 			}
 		case "t4":
@@ -246,16 +255,19 @@ func TestRule(t *testing.T) {
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{}) {
 				t.Error("Got wrong meta variables for t4")
 			}
-			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$d": "qwe"}) {
+			expected := []YRString{
+				{Id: "$d", Value: "qwe", Modifiers: FlagReferenced | FlagASCII},
+			}
+			if !reflect.DeepEqual(r.Strings(), expected) {
 				t.Error("Got wrong strings variable for t4")
 			}
 		case "t5":
-			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$c": "ghi"}, "$e", "abc") {
-				t.Error("Got wrong strings variable for t1")
+			expected := []YRString{
+				{Id: "$d", Value: "qwe", Modifiers: FlagReferenced | FlagWide},
+				{Id: "$e", Value: "abc", Modifiers: FlagASCII | FlagReferenced},
 			}
-		case "t6":
-			if len(r.Strings()) != 0 {
-				t.Errorf("Wrong size for t5, expecting 0, got %d", len(r.Strings()))
+			if !reflect.DeepEqual(r.Strings(), expected) {
+				t.Error("Got wrong strings variable for t1")
 			}
 		default:
 			t.Errorf("Found unexpected rule name: %#v", r.Identifier())

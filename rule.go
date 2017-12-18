@@ -48,9 +48,10 @@ static void rule_strings(YR_RULE* r, const YR_STRING *strings[], int *n) {
 }
 
 // string is union accessor accessor function.
-static void string(YR_STRING *s, const char** identifier, char** string) {
+static void string(YR_STRING *s, const char** identifier, char** string, int32_t *flags) {
 	*identifier = s->identifier;
 	*string = s->string;
+	*flags = s->g_flags & ~0xe00; // XXX: what is this mask?
 	return;
 }
 
@@ -134,9 +135,38 @@ func (r *Rule) Metas() (metas map[string]interface{}) {
 	return
 }
 
+type YRString struct {
+	Id        string
+	Value     string
+	Modifiers ModifierFlag
+}
+
+type ModifierFlag int32
+
+const (
+	FlagReferenced ModifierFlag = 1 << iota
+	FlagHexadecimal
+	FlagNocase
+	FlagASCII
+	FlagWide
+	FlagRegexp
+	FlagFast
+	FlagFullWord
+	FlagAnymous
+	FlagSingle
+	FlagLiteral
+	FlagFitsInAtom
+	FlagNull
+	FlagChainPart
+	FlagChainTail
+	FlagFixedOffset
+	FlagGreedy
+	FlagDotAll
+	FlagDisabled
+)
+
 // Strings returns the rule's strings in a map. Values are strings
-func (r *Rule) Strings() (strings map[string]interface{}) {
-	strings = make(map[string]interface{})
+func (r *Rule) Strings() (strings []YRString) {
 	var size C.int
 	C.rule_strings(r.cptr, nil, &size)
 	if size == 0 {
@@ -146,8 +176,13 @@ func (r *Rule) Strings() (strings map[string]interface{}) {
 	C.rule_strings(r.cptr, &mptrs[0], &size)
 	for _, m := range mptrs {
 		var id, str *C.char
-		C.string(m, &id, &str)
-		strings[C.GoString(id)] = C.GoString(str)
+		var flags C.int32_t
+		C.string(m, &id, &str, &flags)
+		strings = append(strings, YRString{
+			Id:        C.GoString(id),
+			Value:     C.GoString(str),
+			Modifiers: ModifierFlag(flags),
+		})
 	}
-	return
+	return strings
 }
