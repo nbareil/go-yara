@@ -203,7 +203,9 @@ func TestRule(t *testing.T) {
 		rule t1 : tag1 { meta: author = "Author One" strings: $a = "abc" fullword condition: $a }
         rule t2 : tag2 x y { meta: author = "Author Two" strings: $b = "def" condition: $b }
         rule t3 : tag3 x y z { meta: author = "Author Three" strings: $c = "ghi" condition: $c }
-		rule t4 { strings: $d = "qwe" condition: $d }`)
+		rule t4 { strings: $d = "qwe" condition: $d }
+		rule t5 { strings: $d = "qwe" $e = "abc" condition: $d }
+		rule t6 { meta: author = "Author One" }`)
 	for _, r := range r.GetRules() {
 		t.Logf("%s:%s %#v", r.Namespace(), r.Identifier(), r.Tags())
 		switch r.Identifier() {
@@ -214,12 +216,18 @@ func TestRule(t *testing.T) {
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{"author": "Author One"}) {
 				t.Error("Got wrong meta variables for t1")
 			}
+			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$a": "abc"}) {
+				t.Error("Got wrong strings variable for t1")
+			}
 		case "t2":
 			if !reflect.DeepEqual(r.Tags(), []string{"tag2", "x", "y"}) {
 				t.Error("Got wrong tags for t2")
 			}
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{"author": "Author Two"}) {
 				t.Error("Got wrong meta variables for t2")
+			}
+			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$b": "def"}) {
+				t.Error("Got wrong strings variable for t2")
 			}
 		case "t3":
 			if !reflect.DeepEqual(r.Tags(), []string{"tag3", "x", "y", "z"}) {
@@ -228,12 +236,26 @@ func TestRule(t *testing.T) {
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{"author": "Author Three"}) {
 				t.Error("Got wrong meta variables for t3")
 			}
+			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$c": "ghi"}) {
+				t.Error("Got wrong strings variable for t3")
+			}
 		case "t4":
 			if len(r.Tags()) != 0 {
 				t.Error("Got tags for t4")
 			}
 			if !reflect.DeepEqual(r.Metas(), map[string]interface{}{}) {
 				t.Error("Got wrong meta variables for t4")
+			}
+			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$d": "qwe"}) {
+				t.Error("Got wrong strings variable for t4")
+			}
+		case "t5":
+			if !reflect.DeepEqual(r.Strings(), map[string]interface{}{"$c": "ghi"}, "$e", "abc") {
+				t.Error("Got wrong strings variable for t1")
+			}
+		case "t6":
+			if len(r.Strings()) != 0 {
+				t.Errorf("Wrong size for t5, expecting 0, got %d", len(r.Strings()))
 			}
 		default:
 			t.Errorf("Found unexpected rule name: %#v", r.Identifier())

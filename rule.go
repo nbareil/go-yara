@@ -33,6 +33,27 @@ static void rule_tags(YR_RULE* r, const char *tags[], int *n) {
 	return;
 }
 
+// rule_strings returns pointers to the strings associated with a
+// rule, using YARA's own implementation
+static void rule_strings(YR_RULE* r, const YR_STRING *strings[], int *n) {
+	const YR_STRING *string;
+	int i = 0;
+	yr_rule_strings_foreach(r, string) {
+		if (i < *n)
+			strings[i] = string;
+		i++;
+	};
+	*n = i;
+	return;
+}
+
+// string is union accessor accessor function.
+static void string(YR_STRING *s, const char** identifier, char** string) {
+	*identifier = s->identifier;
+	*string = s->string;
+	return;
+}
+
 // rule_tags returns pointers to the meta variables associated with a
 // rule, using YARA's own implementation
 static void rule_metas(YR_RULE* r, const YR_META *metas[], int *n) {
@@ -109,6 +130,24 @@ func (r *Rule) Metas() (metas map[string]interface{}) {
 		case C.META_TYPE_BOOLEAN:
 			metas[C.GoString(id)] = n != 0
 		}
+	}
+	return
+}
+
+// Strings returns the rule's strings in a map. Values are strings
+func (r *Rule) Strings() (strings map[string]interface{}) {
+	strings = make(map[string]interface{})
+	var size C.int
+	C.rule_strings(r.cptr, nil, &size)
+	if size == 0 {
+		return
+	}
+	mptrs := make([]*C.YR_STRING, int(size))
+	C.rule_strings(r.cptr, &mptrs[0], &size)
+	for _, m := range mptrs {
+		var id, str *C.char
+		C.string(m, &id, &str)
+		strings[C.GoString(id)] = C.GoString(str)
 	}
 	return
 }
